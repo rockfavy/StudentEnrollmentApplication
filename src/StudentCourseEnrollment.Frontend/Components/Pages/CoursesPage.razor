@@ -1,0 +1,672 @@
+@page "/courses"
+@attribute [Authorize]
+@implements IDisposable
+@inject ICoursesClient CoursesClient
+@inject IEnrollmentsClient EnrollmentsClient
+@inject StudentCourseEnrollment.Frontend.Services.ToastService ToastService
+
+<PageTitle>Available Courses</PageTitle>
+
+@if (!IsPageReady)
+{
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.9); z-index: 9999; display: flex; justify-content: center; align-items: center;">
+        <div class="text-center">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted">Loading...</p>
+        </div>
+    </div>
+}
+
+<h3 class="mb-4">Available Courses</h3>
+
+<div class="mb-3">
+    <div class="row">
+        <div class="col-md-4">
+            <input type="text" 
+                   class="form-control" 
+                   placeholder="Search courses..." 
+                   value="@searchString" 
+                   @oninput="OnSearch" />
+        </div>
+        <div class="col-md-8 text-end">
+            <AuthorizeView Roles="@Role.Admin.ToString()">
+                <Authorized>
+                    <button class="btn btn-primary" @onclick="OpenCreateModal">Create Course</button>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </div>
+</div>
+
+@if (loading)
+{
+    <div class="text-center my-4">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading courses...</p>
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>
+                        <a href="#" @onclick="@(() => SortBy("Name"))" class="text-decoration-none">
+                            Course Name
+                            @if (currentSortBy == "Name")
+                            {
+                                <span>@(currentSortDirection == SortDirection.Asc ? "↑" : "↓")</span>
+                            }
+                        </a>
+                    </th>
+                    <th>Description</th>
+                    <th>
+                        <a href="#" @onclick="@(() => SortBy("Capacity"))" class="text-decoration-none">
+                            Enrollment
+                            @if (currentSortBy == "Capacity")
+                            {
+                                <span>@(currentSortDirection == SortDirection.Asc ? "↑" : "↓")</span>
+                            }
+                        </a>
+                    </th>
+                    <th>
+                        <a href="#" @onclick="@(() => SortBy("CreatedAt"))" class="text-decoration-none">
+                            Created At
+                            @if (currentSortBy == "CreatedAt")
+                            {
+                                <span>@(currentSortDirection == SortDirection.Asc ? "↑" : "↓")</span>
+                            }
+                        </a>
+                    </th>
+                    <AuthorizeView>
+                        <Authorized Context="user">
+                            <th>Actions</th>
+                        </Authorized>
+                    </AuthorizeView>
+                </tr>
+            </thead>
+            <tbody>
+                @if (courses != null && courses.Any())
+                {
+                    @foreach (var course in courses)
+                    {
+                        <tr>
+                            <td>
+                                @course.Name
+                                @if (course.CurrentEnrollments > 0)
+                                {
+                                    <span class="badge bg-info text-dark ms-2">Enrolled</span>
+                                }
+                            </td>
+                            <td>@course.Description</td>
+                            <td>
+                                @course.CurrentEnrollments / @course.Capacity
+                                @if (course.CurrentEnrollments >= course.Capacity)
+                                {
+                                    <span class="badge bg-danger ms-2">Full</span>
+                                }
+                            </td>
+                            <td>@course.CreatedAt.ToLocalTime().ToString("g")</td>
+                            <AuthorizeView>
+                                <Authorized Context="user">
+                                    <td>
+                                        <AuthorizeView Roles="@Role.Admin.ToString()">
+                                            <Authorized Context="admin">
+                                                <button class="btn btn-sm btn-primary me-1" @onclick="() => OpenEditModal(course)" disabled="@(isProcessing && editingCourseId == course.Id)">
+                                                    @if (isProcessing && editingCourseId == course.Id)
+                                                    {
+                                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                                    }
+                                                    Edit
+                                                </button>
+                                                <button class="btn btn-sm btn-danger"
+                                                        @onclick="() => OpenDeleteModal(course)"
+                                                        disabled="@(isProcessing || course.CurrentEnrollments > 0)">
+                                                    Delete
+                                                </button>
+                                            </Authorized>
+                                        </AuthorizeView>
+                                        <AuthorizeView Roles="@Role.Student.ToString()">
+                                            <Authorized Context="student">
+                                                @if (enrolledCourseIds.Contains(course.Id))
+                                                {
+                                                    <span class="badge bg-success">Enrolled</span>
+                                                }
+                                                else if (course.CurrentEnrollments >= course.Capacity)
+                                                {
+                                                    <span class="badge bg-secondary">Full</span>
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn btn-sm btn-success"
+                                                            @onclick="() => EnrollInCourseAsync(course.Id)"
+                                                            disabled="@(isProcessing || (enrollingCourseId == course.Id))">
+                                                        @if (enrollingCourseId == course.Id)
+                                                        {
+                                                            <span class="spinner-border spinner-border-sm me-1"
+                                                                  role="status"
+                                                                  aria-hidden="true"></span>
+                                                        }
+                                                        Enroll
+                                                    </button>
+                                                }
+                                            </Authorized>
+                                        </AuthorizeView>
+                                    </td>
+                                </Authorized>
+                            </AuthorizeView>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" class="text-center">No courses found</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (totalItems > pageSize)
+    {
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(currentPage == 0 ? "disabled" : "")">
+                    <a class="page-link" href="#" @onclick="@(() => ChangePage(currentPage - 1))" @onclick:preventDefault>Previous</a>
+                </li>
+                @for (int i = 0; i < totalPages; i++)
+                {
+                    var pageNum = i;
+                    <li class="page-item @(currentPage == pageNum ? "active" : "")">
+                        <a class="page-link" href="#" @onclick="@(() => ChangePage(pageNum))" @onclick:preventDefault>@(pageNum + 1)</a>
+                    </li>
+                }
+                <li class="page-item @(currentPage >= totalPages - 1 ? "disabled" : "")">
+                    <a class="page-link" href="#" @onclick="@(() => ChangePage(currentPage + 1))" @onclick:preventDefault>Next</a>
+                </li>
+            </ul>
+        </nav>
+    }
+}
+
+@if (showCreateModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Course</h5>
+                    <button type="button" class="btn-close" @onclick="CloseCreateModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="createName" class="form-label">Course Name</label>
+                        <input type="text" class="form-control" id="createName" @bind="createName" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="createDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="createDescription" @bind="createDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="createCapacity" class="form-label">Capacity</label>
+                        <input type="number" class="form-control" id="createCapacity" @bind="createCapacity" min="1" max="1000" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseCreateModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="CreateCourseAsync" disabled="@isProcessing">
+                        @if (isProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        }
+                        Create
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showEditModal && editingCourse != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Course</h5>
+                    <button type="button" class="btn-close" @onclick="CloseEditModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editName" class="form-label">Course Name</label>
+                        <input type="text" class="form-control" id="editName" @bind="editName" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="editDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editDescription" @bind="editDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editCapacity" class="form-label">Capacity</label>
+                        @if (editingCourse != null)
+                        {
+                            <div class="text-muted small mb-2">
+                                Current enrollments: <strong>@editingCourse.CurrentEnrollments</strong>
+                            </div>
+                        }
+                        <input type="number" class="form-control" id="editCapacity" @bind="editCapacity" min="@(editingCourse?.CurrentEnrollments ?? 1)" max="1000" />
+                        @if (editingCourse != null && editCapacity < editingCourse.CurrentEnrollments)
+                        {
+                            <div class="text-danger small mt-1">Capacity cannot be less than current enrollments (@editingCourse.CurrentEnrollments)</div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseEditModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="UpdateCourseAsync" disabled="@isProcessing">
+                        @if (isProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        }
+                        Update
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showDeleteModal && deletingCourse != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Course</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong>"@deletingCourse.Name"</strong>?</p>
+                    <p class="text-danger mb-0">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal" disabled="@isProcessing">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteCourseAsync" disabled="@isProcessing">
+                        @if (isProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        }
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CourseDto>? courses;
+    private bool loading = false;
+    private bool IsPageReady = false;
+    private string? searchString = null;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private int currentPage = 0;
+    private int pageSize = 10;
+    private int totalItems = 0;
+    private int totalPages => (int)Math.Ceiling((double)totalItems / pageSize);
+    private string? currentSortBy = null;
+    private SortDirection? currentSortDirection = null;
+    private CancellationTokenSource cts = new();
+
+    private bool showCreateModal = false;
+    private bool showEditModal = false;
+    private bool showDeleteModal = false;
+    private CourseDto? editingCourse = null;
+    private CourseDto? deletingCourse = null;
+    private Guid? editingCourseId = null;
+    private Guid? deletingCourseId = null;
+    private Guid? enrollingCourseId = null;
+    private HashSet<Guid> enrolledCourseIds = new();
+    private bool isProcessing = false;
+    
+    private string createName = string.Empty;
+    private string createDescription = string.Empty;
+    private int createCapacity = 1;
+    
+    private string editName = string.Empty;
+    private string editDescription = string.Empty;
+    private int editCapacity = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadCourses();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error initializing page: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+            courses = new List<CourseDto>();
+        }
+        finally
+        {
+            IsPageReady = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadCourses(bool clearSuccessMessage = true)
+    {
+        loading = true;
+        IsPageReady = false;
+        errorMessage = string.Empty;
+        if (clearSuccessMessage)
+        {
+            successMessage = string.Empty;
+        }
+        StateHasChanged();
+
+        try
+        {
+            var result = await CoursesClient.GetCoursesAsync(
+                currentPage,
+                pageSize,
+                searchString,
+                currentSortBy,
+                currentSortDirection,
+                cts.Token);
+
+            courses = result.Items.ToList();
+            totalItems = result.TotalItems;
+        }
+        catch (HttpRequestException exc)
+        {
+            errorMessage = $"Error loading courses: {exc.Message}";
+            ToastService.ShowError(errorMessage);
+            courses = new List<CourseDto>();
+        }
+        catch (TaskCanceledException)
+        {
+            courses = new List<CourseDto>();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unknown error has occurred: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+            courses = new List<CourseDto>();
+        }
+        finally
+        {
+            loading = false;
+            await Task.Delay(100);
+            IsPageReady = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSearch(ChangeEventArgs e)
+    {
+        searchString = e.Value?.ToString();
+        currentPage = 0;
+        await LoadCourses();
+    }
+
+    private async Task SortBy(string sortBy)
+    {
+        if (currentSortBy == sortBy)
+        {
+            currentSortDirection = currentSortDirection == SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc;
+        }
+        else
+        {
+            currentSortBy = sortBy;
+            currentSortDirection = SortDirection.Asc;
+        }
+        await LoadCourses();
+    }
+
+    private async Task ChangePage(int page)
+    {
+        if (page >= 0 && page < totalPages)
+        {
+            currentPage = page;
+            await LoadCourses();
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        createName = string.Empty;
+        createDescription = string.Empty;
+        createCapacity = 1;
+        showCreateModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseCreateModal()
+    {
+        showCreateModal = false;
+        createName = string.Empty;
+        createDescription = string.Empty;
+        createCapacity = 1;
+        StateHasChanged();
+    }
+
+    private void OpenEditModal(CourseDto course)
+    {
+        editingCourse = course;
+        editingCourseId = course.Id;
+        editName = course.Name;
+        editDescription = course.Description;
+        editCapacity = course.Capacity;
+        showEditModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseEditModal()
+    {
+        showEditModal = false;
+        editingCourse = null;
+        editingCourseId = null;
+        editName = string.Empty;
+        editDescription = string.Empty;
+        editCapacity = 1;
+        StateHasChanged();
+    }
+
+    private async Task CreateCourseAsync()
+    {
+        if (string.IsNullOrWhiteSpace(createName) || 
+            string.IsNullOrWhiteSpace(createDescription) || 
+            createCapacity < 1)
+        {
+            errorMessage = "Please fill in all fields with valid values.";
+            ToastService.ShowError(errorMessage);
+            return;
+        }
+
+        try
+        {
+            isProcessing = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+            StateHasChanged();
+
+            var request = new CreateCourseRequest(createName, createDescription, createCapacity);
+            await CoursesClient.CreateCourseAsync(request);
+            
+            successMessage = $"Course \"{createName}\" created successfully.";
+            ToastService.ShowSuccess(successMessage);
+            CloseCreateModal();
+            await LoadCourses();
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = ex.Message;
+            ToastService.ShowError(errorMessage);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task UpdateCourseAsync()
+    {
+        if (editingCourse == null || string.IsNullOrWhiteSpace(editName) || 
+            string.IsNullOrWhiteSpace(editDescription) || 
+            editCapacity < 1)
+        {
+            errorMessage = "Please fill in all fields with valid values.";
+            ToastService.ShowError(errorMessage);
+            return;
+        }
+
+        try
+        {
+            isProcessing = true;
+            editingCourseId = editingCourse.Id;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+            StateHasChanged();
+
+            var request = new UpdateCourseRequest(editName, editDescription, editCapacity);
+            await CoursesClient.UpdateCourseAsync(editingCourse.Id, request);
+            
+            successMessage = $"Course \"{editName}\" updated successfully.";
+            ToastService.ShowSuccess(successMessage);
+            CloseEditModal();
+            await LoadCourses();
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = ex.Message;
+            ToastService.ShowError(errorMessage);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isProcessing = false;
+            editingCourseId = null;
+            StateHasChanged();
+        }
+    }
+
+    private void OpenDeleteModal(CourseDto course)
+    {
+        deletingCourse = course;
+        deletingCourseId = course.Id;
+        showDeleteModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        deletingCourse = null;
+        deletingCourseId = null;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDeleteCourseAsync()
+    {
+        if (deletingCourse == null)
+        {
+            return;
+        }
+
+        try
+        {
+            isProcessing = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+            StateHasChanged();
+
+            await CoursesClient.DeleteCourseAsync(deletingCourse.Id);
+            
+            successMessage = $"Course \"{deletingCourse.Name}\" deleted successfully.";
+            ToastService.ShowSuccess(successMessage);
+            CloseDeleteModal();
+            await LoadCourses();
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = ex.Message;
+            ToastService.ShowError(errorMessage);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isProcessing = false;
+            deletingCourseId = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task EnrollInCourseAsync(Guid courseId)
+    {
+        try
+        {
+            isProcessing = true;
+            IsPageReady = false;
+            enrollingCourseId = courseId;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+            StateHasChanged();
+
+            var response = await EnrollmentsClient.EnrollAsync(courseId);
+            
+            if (response != null)
+            {
+            successMessage = $"Successfully enrolled in course!";
+            ToastService.ShowSuccess(successMessage);
+                await LoadCourses(clearSuccessMessage: false);
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = ex.Message;
+            ToastService.ShowError(errorMessage);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isProcessing = false;
+            enrollingCourseId = null;
+            await Task.Delay(100);
+            IsPageReady = true;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        cts.Cancel();
+        cts.Dispose();
+    }
+}

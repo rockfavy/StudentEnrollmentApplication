@@ -1,0 +1,56 @@
+@inject ToastService ToastService
+
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+    @foreach (var toast in _toasts)
+    {
+        var css = toast.Level switch
+        {
+            ToastLevel.Success => "bg-success text-white",
+            ToastLevel.Error => "bg-danger text-white",
+            ToastLevel.Info => "bg-info text-dark",
+            ToastLevel.Warning => "bg-warning text-dark",
+            _ => "bg-secondary text-white"
+        };
+
+        <div class="toast show mb-2 @css" role="status" aria-live="polite" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    @toast.Message
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" @onclick="@(() => Dismiss(toast.Id))" aria-label="Close"></button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<ToastMessage> _toasts = new();
+
+    protected override void OnInitialized()
+    {
+        ToastService.OnToastsUpdated += HandleToastsUpdated;
+        _toasts = ToastService.Messages.ToList();
+    }
+
+    protected override void OnParametersSet()
+    {
+        _toasts = ToastService.Messages.ToList();
+    }
+
+    private void HandleToastsUpdated()
+    {
+        _toasts = ToastService.Messages.ToList();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Dismiss(Guid id)
+    {
+        ToastService.Remove(id);
+    }
+
+    public void Dispose()
+    {
+        ToastService.OnToastsUpdated -= HandleToastsUpdated;
+    }
+}
+

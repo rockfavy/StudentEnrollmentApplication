@@ -1,0 +1,88 @@
+@page "/admin/courses"
+@inject StudentCourseEnrollment.Frontend.Services.ToastService ToastService
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Course Management</PageTitle>
+
+<h3 class="mb-4">Course Management</h3>
+
+@if (isLoading)
+{
+    <div class="text-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (courses == null || !courses.Any())
+{
+    <p class="text-muted">No courses with enrollments found.</p>
+}
+else
+{
+    @foreach (var course in courses)
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">@course.Name</h5>
+                <small class="text-muted">@course.Description</small>
+            </div>
+            <div class="card-body">
+                <p class="mb-3"><strong>Enrolled Students: @course.Enrollments.Count</strong></p>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Email</th>
+                            <th>Enrolled At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var enrollment in course.Enrollments)
+                        {
+                            <tr>
+                                <td>@enrollment.StudentFirstName @enrollment.StudentLastName</td>
+                                <td>@enrollment.StudentEmail</td>
+                                <td>@enrollment.EnrolledAt.ToString("MMM dd, yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Inject] private IEnrollmentsClient EnrollmentsClient { get; set; } = null!;
+    
+    private List<CourseWithEnrollmentsDto>? courses;
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCourses();
+    }
+
+    private async Task LoadCourses()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        
+        try
+        {
+            courses = await EnrollmentsClient.GetAllCoursesWithEnrollmentsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load courses: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

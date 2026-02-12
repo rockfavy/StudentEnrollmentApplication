@@ -1,0 +1,66 @@
+################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs
+/rubbish
+/src/StudentCourseEnrollment.Api/bin/Debug/net8.0
+/src/StudentCourseEnrollment.Api/obj
+/src/StudentCourseEnrollment.Frontend/obj
+/src/StudentCourseEnrollment.Shared/bin/Debug/net8.0
+/src/StudentCourseEnrollment.Shared/obj
+/src/StudentCourseEnrollment.Frontend/bin/Debug/net8.0
+/work-items-analysis.md
+/Student-Course-Enrollment-System.wiki/System-Documentation/4.-Infrastructure-Documentation/workflows_ai_rules.md
+/tests/StudentCourseEnrollment.Tests.Integration/bin/Debug/net8.0
+/tests/StudentCourseEnrollment.Tests.Unit/bin/Debug/net8.0
+/tests/StudentCourseEnrollment.Tests.Unit/obj/Debug/net8.0
+/tests/StudentCourseEnrollment.Tests.Integration/obj/Debug/net8.0
+/tests/StudentCourseEnrollment.Tests.Integration/obj
+/tests/StudentCourseEnrollment.Tests.Unit/obj
+/src/tests/StudentCourseEnrollment.Tests.Integration/bin/Debug/net8.0
+/src/tests/StudentCourseEnrollment.Tests.Integration/obj
+/src/tests/StudentCourseEnrollment.Tests.Unit/bin/Debug/net8.0
+/src/tests/StudentCourseEnrollment.Tests.Unit/obj
+/assets/c__Users_Favy.Learn_AppData_Roaming_Cursor_User_workspaceStorage_8575705bdf8eaa96b98bdfa6a5d1293f_images_image-19bfcfd1-ee94-453f-9b76-25440224cd16.png
+/assets/c__Users_Favy.Learn_AppData_Roaming_Cursor_User_workspaceStorage_8575705bdf8eaa96b98bdfa6a5d1293f_images_image-ae4eaac5-e31e-4555-bf0d-a5c7f8bc9185.png
+/assets/c__Users_Favy.Learn_AppData_Roaming_Cursor_User_workspaceStorage_8575705bdf8eaa96b98bdfa6a5d1293f_images_image-d0e97e50-cae0-4381-9a71-c40273f0df1d.png
+/assets/c__Users_Favy.Learn_AppData_Roaming_Cursor_User_workspaceStorage_8575705bdf8eaa96b98bdfa6a5d1293f_images_image-de5a4070-1c64-4cc2-a9e2-b12eedeeb701.png
+/assets
+/StudentCourseEnrollment.slnLaunch.user
+/TestResults/e8b924f0-0f56-4414-902e-76048a928d91
+/TestResults
+/src/StudentCourseEnrollment.Frontend/StudentCourseEnrollment.Frontend.csproj.user
+*.msi
+/.vs/Student Course Enrollment System/v17/.wsuo
+/.vs
+/.vs/slnx.sqlite
+/.vs/VSWorkspaceState.json
+*.log
+/src/tests/StudentCourseEnrollment.Tests.Unit/bin/Release/net8.0
+/.vs/VSWorkspaceState.json
+/.vs/Student Course Enrollment System/v17/DocumentLayout.backup.json
+/src/StudentCourseEnrollment.Api/bin/Release/net8.0
+/src/StudentCourseEnrollment.Frontend/bin/Release/net8.0
+/src/StudentCourseEnrollment.Shared/bin/Release/net8.0
+
+# Local publish/test artifacts
+/local-test/
+
+# Build artifacts - Release
+**/bin/Release/
+**/obj/Release/
+**/bin/Release/net8.0/
+**/obj/Release/net8.0/
+
+# Test artifacts
+**/CoverletSourceRootsMapping*
+**/coverage.*
+**/*.coverage
+
+# Test deployment folder
+/test-deploy/
+/src/tests/StudentCourseEnrollment.Tests.Integration/bin/Release/net8.0/CoverletSourceRootsMapping_StudentCourseEnrollment.Tests.Integration
+/src/tests/StudentCourseEnrollment.Tests.Integration/bin/Release/net8.0/CoverletSourceRootsMapping_StudentCourseEnrollment.Tests.Integration
+/src/tests/StudentCourseEnrollment.Tests.Integration/bin/Release/net8.0/CoverletSourceRootsMapping_StudentCourseEnrollment.Tests.Integration
+/publish-test

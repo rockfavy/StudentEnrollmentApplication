@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura,json</Format>
+          <Include>[StudentCourseEnrollment.Api]*,[StudentCourseEnrollment.Frontend]*,[StudentCourseEnrollment.Shared]*</Include>
+          <Exclude>[*.Tests]*,[*.Test]*,[*]StudentCourseEnrollment.Tests*</Exclude>
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
+          <ExcludeByFile>**/bin/**,**/obj/**,**/Migrations/**,**/wwwroot/**</ExcludeByFile>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
+

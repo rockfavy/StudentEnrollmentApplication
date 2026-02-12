@@ -1,0 +1,77 @@
+@inject NavigationManager Navigation
+@inject StudentCourseEnrollment.Frontend.Services.CustomAuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light app-bar">
+    <div class="app-bar-content">
+        <a class="navbar-brand app-bar-brand" href="/">Student Course Enrollment</a>
+        <div class="app-bar-right">
+            <AuthorizeView>
+                <Authorized Context="authContext">
+                    <span class="navbar-text">
+                        @GetFormattedUserName(authContext.User)
+                    </span>
+                    <button class="btn btn-link nav-link p-0" @onclick="HandleLogout">Logout</button>
+                </Authorized>
+                <NotAuthorized>
+                    <a class="nav-link" href="/login">Login</a>
+                    <a class="nav-link" href="/register">Register</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </div>
+</nav>
+
+@code {
+    private async Task HandleLogout()
+    {
+        await AuthStateProvider.ClearAuthenticationStateAsync();
+        await JSRuntime.InvokeVoidAsync("eval", "window.location.href = '/'");
+    }
+
+    private string GetFormattedUserName(System.Security.Claims.ClaimsPrincipal? user)
+    {
+        if (user == null)
+            return string.Empty;
+
+        var firstName = user.FindFirst("FirstName")?.Value ?? user.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value;
+        var lastName = user.FindFirst("LastName")?.Value ?? user.FindFirst(System.Security.Claims.ClaimTypes.Surname)?.Value;
+
+        if (!string.IsNullOrWhiteSpace(firstName) && !string.IsNullOrWhiteSpace(lastName))
+        {
+            var formattedFirstName = FormatName(firstName);
+            var formattedLastName = FormatName(lastName);
+            return $"{formattedFirstName} {formattedLastName}";
+        }
+
+        var name = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+            {
+                return $"{FormatName(parts[0])} {FormatName(parts[parts.Length - 1])}";
+            }
+            return FormatName(name);
+        }
+
+        return string.Empty;
+    }
+
+    private string FormatName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return string.Empty;
+
+        if (name.Length > 1)
+        {
+            return char.ToUpper(name[0]) + name.Substring(1).ToLower();
+        }
+        else if (name.Length == 1)
+        {
+            return char.ToUpper(name[0]).ToString();
+        }
+
+        return name;
+    }
+}

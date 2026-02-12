@@ -1,0 +1,46 @@
+@page "/"
+@attribute [AllowAnonymous]
+
+<PageTitle>Student Course Enrollment System</PageTitle>
+
+<div class="home-hero py-5">
+    <div class="container">
+        <div class="row align-items-center gy-4">
+            <div class="col-lg-6">
+                <h1 class="display-5 fw-semibold mb-3">
+                    Student Course Enrollment System
+                </h1>
+                <p class="lead text-light-50 mb-4">
+                    A focused enrollment portal for students and admins, built with Blazor WebAssembly and a secure API.
+                </p>
+
+                <AuthorizeView>
+                    <Authorized Context="user">
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="/courses" class="btn btn-light btn-lg">
+                                View Courses
+                            </a>
+                            <AuthorizeView Roles="@Role.Student.ToString()">
+                                <Authorized Context="student">
+                                    <a href="/enrollments" class="btn btn-outline-light btn-lg">
+                                        My enrollments
+                                    </a>
+                                </Authorized>
+                            </AuthorizeView>
+                        </div>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="/login" class="btn btn-light btn-lg">
+                                Login
+                            </a>
+                            <a href="/register" class="btn btn-outline-light btn-lg">
+                                Register
+                            </a>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </div>
+</div>

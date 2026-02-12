@@ -1,0 +1,92 @@
+@inject IEnrollmentsClient EnrollmentsClient
+@inject NavigationManager Navigation
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">@Course.Name</h5>
+        <p class="card-text">@Course.Description</p>
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <small class="text-muted">Capacity: @Course.Capacity</small>
+                <br />
+                <small class="text-muted">Created: @Course.CreatedAt.ToString("MMM dd, yyyy")</small>
+            </div>
+            <AuthorizeView>
+                <Authorized>
+                    <button class="btn btn-primary" @onclick="HandleEnroll" disabled="@IsEnrolling">
+                        @if (IsEnrolling)
+                        {
+                            <text>Enrolling...</text>
+                        }
+                        else
+                        {
+                            <text>Enroll</text>
+                        }
+                    </button>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login" class="btn btn-outline-primary">Login to Enroll</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+
+        @if (!string.IsNullOrEmpty(SuccessMessage))
+        {
+            <div class="alert alert-success mt-3" role="alert">
+                @SuccessMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger mt-3" role="alert">
+                @ErrorMessage
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public CourseDto Course { get; set; } = default!;
+
+    private bool IsEnrolling { get; set; } = false;
+    private string SuccessMessage { get; set; } = string.Empty;
+    private string ErrorMessage { get; set; } = string.Empty;
+
+    private async Task HandleEnroll()
+    {
+        IsEnrolling = true;
+        SuccessMessage = string.Empty;
+        ErrorMessage = string.Empty;
+        StateHasChanged();
+        
+        try
+        {
+            var response = await EnrollmentsClient.EnrollAsync(Course.Id);
+            
+            if (response != null)
+            {
+                SuccessMessage = $"Successfully enrolled in {Course.Name}!";
+                StateHasChanged();
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/courses", forceLoad: true);
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            ErrorMessage = ex.Message;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"An error occurred: {ex.Message}";
+            StateHasChanged();
+        }
+        finally
+        {
+            IsEnrolling = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -1,0 +1,217 @@
+@page "/enrollments"
+@inject StudentCourseEnrollment.Frontend.Services.ToastService ToastService
+@attribute [Authorize(Roles = "Student")]
+@inject IEnrollmentsClient EnrollmentsClient
+@inject NavigationManager Navigation
+
+<PageTitle>My Enrollments</PageTitle>
+
+@if (!IsPageReady)
+{
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.9); z-index: 9999; display: flex; justify-content: center; align-items: center;">
+        <div class="text-center">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted">Loading...</p>
+        </div>
+    </div>
+}
+
+<h3 class="mb-4">My Enrollments</h3>
+
+@if (IsLoading)
+{
+    <div class="text-center my-4">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading enrollments...</p>
+    </div>
+}
+else if (Enrollments == null || !Enrollments.Any())
+{
+    <div class="card my-4">
+        <div class="card-body">
+            <p class="card-text">You haven't enrolled in any courses yet.</p>
+            <p class="card-text">
+                <a href="/courses">Browse available courses</a> to get started.
+            </p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row">
+        @foreach (var enrollment in Enrollments)
+        {
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">@enrollment.CourseName</h5>
+                        <p class="card-text">@enrollment.CourseDescription</p>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                Enrolled on: @enrollment.EnrolledAt.ToLocalTime().ToString("MMMM dd, yyyy")
+                            </small>
+                        </p>
+                        <button class="btn btn-danger btn-sm mt-2" @onclick="() => OpenDeleteModal(enrollment)" disabled="@IsDeregistering">
+                            Deregister
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<EnrollmentDto>? Enrollments { get; set; }
+    private bool IsLoading { get; set; } = true;
+    private bool IsPageReady { get; set; } = false;
+    private bool IsDeregistering { get; set; } = false;
+    private Guid? DeregisteringEnrollmentId { get; set; }
+    private string ErrorMessage { get; set; } = string.Empty;
+    private string SuccessMessage { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEnrollments();
+        IsPageReady = true;
+        StateHasChanged();
+    }
+
+    private async Task LoadEnrollments(bool clearSuccessMessage = true)
+    {
+        try
+        {
+            IsLoading = true;
+            IsPageReady = false;
+            ErrorMessage = string.Empty;
+            if (clearSuccessMessage)
+            {
+                SuccessMessage = string.Empty;
+            }
+            StateHasChanged();
+
+            Enrollments = await EnrollmentsClient.GetMyEnrollmentsAsync();
+            
+            if (Enrollments == null)
+            {
+                Enrollments = new List<EnrollmentDto>();
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            ErrorMessage = $"Failed to load enrollments: {ex.Message}";
+            ToastService.ShowError(ErrorMessage);
+            Enrollments = new List<EnrollmentDto>();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"An unexpected error occurred: {ex.Message}";
+            ToastService.ShowError(ErrorMessage);
+            Enrollments = new List<EnrollmentDto>();
+        }
+        finally
+        {
+            IsLoading = false;
+            await Task.Delay(100);
+            IsPageReady = true;
+            StateHasChanged();
+        }
+    }
+
+
+    private bool showDeleteModal = false;
+    private EnrollmentDto? deletingEnrollment = null;
+
+    private void OpenDeleteModal(EnrollmentDto enrollment)
+    {
+        deletingEnrollment = enrollment;
+        showDeleteModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        deletingEnrollment = null;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDeregisterAsync()
+    {
+        if (deletingEnrollment == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsDeregistering = true;
+            IsPageReady = false;
+            DeregisteringEnrollmentId = deletingEnrollment.Id;
+            ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
+            StateHasChanged();
+
+            var success = await EnrollmentsClient.DeleteEnrollmentAsync(deletingEnrollment.Id);
+            
+            if (success)
+            {
+                SuccessMessage = $"Successfully deregistered from {deletingEnrollment.CourseName}";
+                ToastService.ShowSuccess(SuccessMessage);
+                CloseDeleteModal();
+                await LoadEnrollments(clearSuccessMessage: false);
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            ErrorMessage = $"Failed to deregister: {ex.Message}";
+            ToastService.ShowError(ErrorMessage);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"An unexpected error occurred: {ex.Message}";
+            ToastService.ShowError(ErrorMessage);
+        }
+        finally
+        {
+            IsDeregistering = false;
+            DeregisteringEnrollmentId = null;
+            await Task.Delay(100);
+            IsPageReady = true;
+            StateHasChanged();
+        }
+    }
+
+}
+
+@if (showDeleteModal && deletingEnrollment != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Deregister from Course</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to deregister from <strong>"@deletingEnrollment.CourseName"</strong>?</p>
+                    <p class="text-danger mb-0">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal" disabled="@IsDeregistering">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeregisterAsync" disabled="@IsDeregistering">
+                        @if (IsDeregistering)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        }
+                        Deregister
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
